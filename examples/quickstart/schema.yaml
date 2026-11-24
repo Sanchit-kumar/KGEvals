@@ -1,0 +1,6 @@
+# Short schema form: entity type names + relations with domain/range.
+entity_types: [Person, Organization, City]
+relations:
+  - { name: worksFor,  domain: Person,       range: Organization }
+  - { name: locatedIn, domain: Organization, range: City }
+  - { name: bornIn,    domain: Person,       range: City }

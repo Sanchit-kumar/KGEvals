@@ -1,0 +1,16 @@
+# Real-data wiring check with a local 7B model (use with --quick --limit 2). Free, but slow on weak GPUs.
+name: real_smoke
+description: Real-data wiring check with a local 7B model (2 samples per dataset)
+datasets: [text2kgbench_webnlg, text2kgbench_tekgen, redocred, mine, wdc_products, abt_buy, amazon_google]
+mode: [isolated, cascaded]
+providers:
+  qwen25: { model: "ollama_chat/qwen2.5-coder:7b", api_base: "http://localhost:11434", max_concurrency: 1, timeout: 900, max_tokens: 1024 }
+judge: { provider: qwen25, prompt_version: v1 }
+pipelines:
+  baseline:
+    extract: { adapter: llm_structured, provider: qwen25 }
+    resolve: { adapter: fuzzy, threshold: 0.85 }
+  exact_er:
+    resolve: { adapter: exact }
+runtime: { workers: 2, cache_path: .gre_cache/cache.sqlite }
+output_dir: runs

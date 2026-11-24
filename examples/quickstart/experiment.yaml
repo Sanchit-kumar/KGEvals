@@ -1,0 +1,30 @@
+# 60-second offline quickstart: YOUR pipeline vs a baseline, on YOUR gold data + the toy set.
+# Run from the repo root:
+#   gre run examples/quickstart/experiment.yaml
+name: quickstart
+description: My pipeline vs LLM baseline on my own gold data (offline, mock LLM)
+mode: [isolated, cascaded]
+plugins: [gre.testing]                       # mock LLMs so this runs without API keys
+
+local_datasets:                              # your own gold file becomes a benchmark
+  my_gold:
+    path: examples/quickstart/gold.jsonl
+    stages: [extract, resolve, graph]
+    schema: examples/quickstart/schema.yaml
+datasets: [my_gold, toy]                     # add public ones too, e.g. redocred, abt_buy (or suite: kg_sota)
+
+providers:
+  mock:  { model: mock/good }                # swap for e.g. "openai/gpt-4.1-mini" once you have a key
+  judge: { model: mock/judge }               # use a strong real model as judge in real runs
+judge: { provider: judge }
+
+pipelines:
+  mine:                                      # <- your code, referenced by "module:function"
+    extract: { callable: "examples.quickstart.my_pipeline:extract" }
+    resolve: { callable: "examples.quickstart.my_pipeline:resolve", strip_suffixes: true }
+  baseline:                                  # <- built-in reference adapters
+    extract: { adapter: llm_structured, provider: mock }
+    resolve: { adapter: fuzzy, threshold: 0.85 }
+
+runtime: { workers: 4, cache_path: .gre_cache/quickstart.sqlite }
+report:  { baseline: baseline }

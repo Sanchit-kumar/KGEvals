@@ -1,0 +1,44 @@
+[project]
+name = "gre"
+version = "0.1.0"
+description = "GraphEvals: benchmark knowledge-graph construction pipelines stage-by-stage against SOTA datasets."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.6",
+    "pyyaml>=6",
+    "typer>=0.12",
+    "rich>=13",
+    "jinja2>=3.1",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "rapidfuzz>=3.6",
+    "networkx>=3.2",
+    "duckdb>=1.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+llm = ["litellm>=1.50"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+gre = "gre.cli:app"
+
+[project.entry-points."gre.plugins"]
+# third-party packages can register adapters / metrics / datasets here:
+# my_plugin = "my_pkg.gre_plugin"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["gre*"]
+
+[tool.setuptools.package-data]
+gre = ["report/templates/*.j2", "datasets/*.yaml"]
+
+[tool.pytest.ini_options]
+markers = ["network: tests that download public datasets"]
+addopts = "-m 'not network'"

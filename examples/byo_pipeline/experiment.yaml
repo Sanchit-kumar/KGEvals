@@ -1,0 +1,25 @@
+# Evaluate "my" pipeline vs the built-in baseline on the extraction + ER suites.
+#   gre run examples/byo_pipeline/experiment.yaml --quick
+name: byo_pipeline
+suite: kg_sota
+mode: [isolated, cascaded]
+plugins: [examples.byo_pipeline.my_kg_pipeline]   # registers @gre.stage / @gre.metric
+
+providers:
+  gpt:   { model: "openai/gpt-4.1-mini" }
+  local: { model: "ollama_chat/qwen2.5-coder:7b", api_base: "http://localhost:11434", max_concurrency: 2, max_tokens: 2048 }
+judge: { provider: gpt }
+
+pipelines:
+  mine:
+    extract: { adapter: my_extractor, provider: "${matrix.llm}" }                     # decorator-registered
+    resolve: { callable: "examples.byo_pipeline.my_kg_pipeline:resolve", strip_suffixes: true }  # plain function
+  baseline:
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: fuzzy, threshold: 0.85 }
+
+matrix:
+  llm: [local, gpt]
+
+budget: { max_cost_usd: 10 }
+report: { baseline: "baseline" }

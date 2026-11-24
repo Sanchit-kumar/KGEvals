@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraphEvals Report</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1d1d1f;--muted:#6b6b70;--line:#e3e3e0;--card:#ffffff;--accent:#2f5bd3;--good:#1f7a4d;--bad:#b3261e;--chip:#eef1fb;--best:#e7f4ec}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#141416;--fg:#ececee;--muted:#9a9aa2;--line:#2c2c31;--card:#1b1b1f;--accent:#8aa8ff;--good:#6fd39b;--bad:#ff8a80;--chip:#232a40;--best:#1d3328}}
+:root[data-theme="dark"]{--bg:#141416;--fg:#ececee;--muted:#9a9aa2;--line:#2c2c31;--card:#1b1b1f;--accent:#8aa8ff;--good:#6fd39b;--bad:#ff8a80;--chip:#232a40;--best:#1d3328}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 64px}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:36px 0 8px;padding-top:12px;border-top:1px solid var(--line)}h3{font-size:14px;margin:20px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.meta{color:var(--muted);font-size:13px}.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 9px;margin:2px 4px 2px 0;font-size:12px}
+.warn{background:#fff4d6;color:#6b4e00;border-radius:6px;padding:6px 10px;display:inline-block;margin-top:8px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .warn{background:#3a3115;color:#f3d27a}}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal;min-width:220px}
+th{font-weight:600;font-size:12px;color:var(--muted);background:var(--card);position:sticky;top:0}
+td.best{background:var(--best);font-weight:600}
+.ci{color:var(--muted);font-size:11px}.sig{color:var(--good);font-weight:700}.sigbad{color:var(--bad);font-weight:700}
+tr.ref td{color:var(--muted);font-style:italic}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}}
+.card{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:12px 14px}
+svg{width:100%;height:auto}svg .axis{stroke:var(--line)}svg .lbl{fill:var(--muted);font-size:11px}
+svg .pt{fill:var(--muted)}svg .pt.on{fill:var(--accent)}svg .ptl{fill:var(--fg);font-size:10px}svg .front{fill:none;stroke:var(--accent);stroke-dasharray:4 3}
+details{margin:6px 0}summary{cursor:pointer;color:var(--accent)}
+.err{border-left:3px solid var(--line);padding:4px 10px;margin:8px 0}.err .txt{color:var(--muted);font-size:12px}
+.err ul{margin:4px 0 4px 18px;padding:0;font-size:12px}.miss{color:var(--bad)}.spur{color:#9a6a00}
+code{font-size:12px}footer{margin-top:40px;color:var(--muted);font-size:12px}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+</style>
+</head>
+<body>
+<main>
+<h1>GraphEvals — {{ exp }}</h1>
+<div class="meta">{{ cfg.description or "" }}</div>
+<div class="meta">Generated {{ generated }} · {{ n_runs }} runs · {{ datasets|length }} datasets · spend this experiment ${{ "%.4f"|format(total_cost) }}</div>
+{% if quick %}<div class="warn">Quick mode: datasets were subsampled (stratified). Use full runs before drawing conclusions.</div>{% endif %}
+
+{% for d in datasets %}
+<h2 id="{{ d.name }}">{{ d.name }}</h2>
+<div class="meta">primary metric <code>{{ d.primary }}</code>{% if d.baseline %} · significance vs <span class="chip">{{ d.baseline }}</span> (paired bootstrap, <span class="sig">▲</span>/<span class="sigbad">▼</span> p&lt;0.05){% endif %}</div>
+
+<h3>Leaderboard</h3>
+<div class="scroll"><table>
+<thead><tr><th>pipeline · model · mode</th>{% for m in d.cols %}<th title="{{ m }}">{{ m.split('.',1)[1] }}</th>{% endfor %}<th>$/sample</th><th>s/sample</th><th>JSON ok</th><th>err</th><th>n</th></tr></thead>
+<tbody>
+{% for r in d.rows %}
+<tr><td>{{ r.label }}{% if r.seeds|length > 1 %} <span class="chip">{{ r.seeds|length }} seeds</span>{% endif %}
+{% set s = d.sig.get(r.label) %}{% if s and s.p_value is not none and s.p_value < 0.05 %}{% if s.delta > 0 %}<span class="sig" title="Δ={{ '%.3f'|format(s.delta) }} p={{ '%.3f'|format(s.p_value) }}"> ▲</span>{% else %}<span class="sigbad" title="Δ={{ '%.3f'|format(s.delta) }} p={{ '%.3f'|format(s.p_value) }}"> ▼</span>{% endif %}{% endif %}</td>
+{% for m in d.cols %}{% set v = r.metrics.get(m) %}
+<td class="{{ 'best' if d.best.get(m) == r.label else '' }}">{% if v and v.value is not none %}{{ fmt(v.value, m) }}{% if v.ci_low is not none and v.ci_high is not none and v.ci_high != v.ci_low %}<div class="ci">{{ fmt(v.ci_low, m) }}–{{ fmt(v.ci_high, m) }}</div>{% endif %}{% else %}–{% endif %}</td>
+{% endfor %}
+<td>{{ "%.5f"|format(r.cost_per_sample) }}</td><td>{{ "%.2f"|format(r.latency_per_sample) }}</td>
+<td>{% if r.usage.json_valid_rate is not none %}{{ fmt(r.usage.json_valid_rate) }}{% else %}–{% endif %}</td>
+<td>{{ fmt(r.usage.error_rate) }}</td><td>{{ r.n_scored }}</td></tr>
+{% endfor %}
+{% for ref in d.sota %}{% if ref.value is not none %}
+<tr class="ref"><td>SOTA ref · {{ ref.system }}<div class="ci">{{ ref.source }}</div></td>{% for m in d.cols %}<td>{% if m == ref.metric %}{{ fmt(ref.value, m) }}{% endif %}</td>{% endfor %}<td colspan="5"></td></tr>
+{% endif %}{% endfor %}
+</tbody></table></div>
+{% set pending = d.sota | selectattr("value", "none") | list %}
+{% if pending %}<div class="meta" style="margin-top:6px">References to verify: {% for ref in pending %}<span class="chip" title="{{ ref.source }}">{{ ref.system }}</span>{% endfor %}</div>{% endif %}
+
+<div class="grid">
+{% if d.scatter %}<div class="card"><h3 style="margin-top:0">Quality vs cost</h3>{{ d.scatter|safe }}<div class="meta">Blue = Pareto frontier (no other config is both cheaper and better).</div></div>{% endif %}
+{% if d.cascade %}<div class="card"><h3 style="margin-top:0">Error propagation (cascaded − isolated)</h3>
+<table><thead><tr><th>pipeline / metric</th><th>isolated</th><th>cascaded</th><th>Δ</th></tr></thead><tbody>
+{% for c in d.cascade %}<tr><td>{{ c.pipeline }}<div class="ci">{{ c.metric }}</div></td><td>{{ fmt(c.isolated, c.metric) }}</td><td>{{ fmt(c.cascaded, c.metric) }}</td><td class="{{ 'neg' if c.delta < 0 else 'pos' }}">{{ "%+.1f"|format(100*c.delta) }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+</div>
+
+<details><summary>All metrics ({{ d.all_metrics|length }})</summary>
+<div class="scroll"><table><thead><tr><th>metric</th>{% for r in d.rows %}<th>{{ r.label }}</th>{% endfor %}</tr></thead><tbody>
+{% for m in d.all_metrics %}<tr><td><code>{{ m }}</code></td>{% for r in d.rows %}{% set v = r.metrics.get(m) %}<td>{% if v and v.value is not none %}{{ fmt(v.value, m) }}{% else %}–{% endif %}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div></details>
+
+<details><summary>Worst samples by {{ d.primary }}</summary>
+{% for label, errs in d.errors.items() %}{% if errs %}
+<h3>{{ label }}</h3>
+{% for e in errs %}<div class="err"><b>{{ e.sample_id }}</b> — {{ fmt(e.value) }}{% if e.error %} <span class="neg">{{ e.error }}</span>{% endif %}
+{% if e.text %}<div class="txt">{{ e.text }}</div>{% endif %}
+{% if e.missed %}<div class="miss">missed gold:</div><ul>{% for t in e.missed %}<li>({{ t[0] }}, {{ t[1] }}, {{ t[2] }})</li>{% endfor %}</ul>{% endif %}
+{% if e.spurious %}<div class="spur">not in gold:</div><ul>{% for t in e.spurious %}<li>({{ t[0] }}, {{ t[1] }}, {{ t[2] }})</li>{% endfor %}</ul>{% endif %}
+{% if e.false_merges %}<div class="miss">false merges:</div><ul>{% for a,b in e.false_merges %}<li>{{ a }} ⟷ {{ b }}</li>{% endfor %}</ul>{% endif %}
+{% if e.missed_merges %}<div class="spur">missed merges:</div><ul>{% for a,b in e.missed_merges %}<li>{{ a }} ⟷ {{ b }}</li>{% endfor %}</ul>{% endif %}
+</div>{% endfor %}
+{% endif %}{% endfor %}
+</details>
+{% endfor %}
+
+<footer>
+Values are percentages (counts shown as numbers); small text under a value = 95% bootstrap CI over samples.
+Strict = exact normalised match; soft = min component similarity ≥ {{ cfg.get('scoring', {}).get('soft_match_threshold', 0.8) }} ({{ cfg.get('scoring', {}).get('soft_method', 'fuzzy') }}).
+SOTA reference rows come from the cited papers and are context only: setups differ.<br>
+Reproducibility: {% for k, v in versions.items() %}{% if v %}<span class="chip">{{ k }} {{ v }}</span>{% endif %}{% endfor %}
+{% if cfg.judge %}<span class="chip">judge {{ cfg.judge.provider }} / prompt {{ cfg.judge.get('prompt_version', 'v1') }}</span>{% endif %}
+</footer>
+</main>
+</body>
+</html>

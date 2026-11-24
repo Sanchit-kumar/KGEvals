@@ -1,0 +1,31 @@
+# Offline smoke test: 2 mock "models" x 2 pipelines on the toy dataset. No API keys needed.
+#   gre run experiments/toy.yaml
+name: toy
+description: Offline smoke test with mock models (shows every report section).
+datasets: [toy]
+seeds: [0]
+mode: [isolated, cascaded]
+plugins: [gre.testing]          # registers mock/good, mock/lazy, mock/judge, mock/hash-embed
+
+providers:
+  good:  { model: mock/good, price_in: 1.0, price_out: 4.0 }   # fake $/1M tokens so cost shows up
+  lazy:  { model: mock/lazy, price_in: 0.1, price_out: 0.4 }
+  judge: { model: mock/judge }
+embeddings:
+  default: { model: mock/hash-embed }
+judge: { provider: judge, prompt_version: v1 }
+
+pipelines:
+  baseline:
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: fuzzy, threshold: 0.6 }
+  llm_er:
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: llm_pairwise, provider: "${matrix.llm}" }
+
+matrix:
+  llm: [good, lazy]
+
+scoring: { soft_match_threshold: 0.8, n_bootstrap: 300 }
+runtime: { workers: 4, cache_path: .gre_cache/toy.sqlite }
+report: { formats: [html, md, json], baseline: "baseline[llm=lazy]" }

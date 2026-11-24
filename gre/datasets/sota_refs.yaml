@@ -1,0 +1,58 @@
+# Published reference numbers shown as "SOTA reference" rows in reports.
+# They are context, not a like-for-like comparison: setups (prompting, fine-tuning, splits,
+# matching rules) differ from gre's. `value: null` = known reference, number not yet verified —
+# fill it in from the cited paper before quoting it.
+#
+# metric keys refer to gre metric names; value scale 0-1.
+
+mine:
+  # Computed from the per-essay scores shipped with the MINE HF dataset (same 101 essays, same judge protocol).
+  - system: KGGen (paper run)
+    metric: graph.fact_retention
+    value: from_dataset:KGGen
+    source: "Mo et al. 2025, arXiv:2502.09956 (per-essay scores in HF dataset)"
+  - system: GraphRAG (paper run)
+    metric: graph.fact_retention
+    value: from_dataset:GraphRAG
+    source: "Mo et al. 2025, arXiv:2502.09956"
+  - system: OpenIE (paper run)
+    metric: graph.fact_retention
+    value: from_dataset:OpenIE
+    source: "Mo et al. 2025, arXiv:2502.09956"
+
+abt_buy:
+  - system: Ditto (fine-tuned RoBERTa)
+    metric: resolve.pairwise.f1
+    value: 0.8933
+    source: "Li et al. Deep Entity Matching with Pre-Trained Language Models, VLDB 2021"
+
+amazon_google:
+  - system: Ditto (fine-tuned RoBERTa)
+    metric: resolve.pairwise.f1
+    value: 0.7558
+    source: "Li et al. VLDB 2021"
+
+wdc_products:
+  - system: GPT-4 / fine-tuned LLM matchers
+    metric: resolve.pairwise.f1
+    value: null
+    source: "Peeters, Steiner, Bizer. Entity Matching using Large Language Models. EDBT 2025, arXiv:2310.11244"
+
+redocred:
+  - system: DREEAM / ATLOP-family (supervised)
+    metric: extract.triple_strict.f1
+    value: null
+    source: "Tan et al. EMNLP 2022 (arXiv:2205.12696); Ma et al. DREEAM, EACL 2023"
+    note: "Supervised DocRE uses gold entity mentions; generative LLM extraction is a harder setting."
+
+text2kgbench_webnlg:
+  - system: Vicuna-13B / Alpaca-LoRA baselines
+    metric: extract.triple_strict.f1
+    value: null
+    source: "Mihindukulasooriya et al. ISWC 2023, arXiv:2308.02357"
+
+text2kgbench_tekgen:
+  - system: Vicuna-13B / Alpaca-LoRA baselines
+    metric: extract.triple_strict.f1
+    value: null
+    source: "Mihindukulasooriya et al. ISWC 2023, arXiv:2308.02357"

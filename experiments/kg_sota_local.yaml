@@ -1,0 +1,26 @@
+# Same benchmark on free local models (Ollama). Good for wiring checks and open-model comparisons.
+#   gre run experiments/kg_sota_local.yaml --quick --limit 3
+name: kg_sota_local
+description: KG construction benchmark on local Ollama models
+suite: kg_sota
+mode: [isolated, cascaded]
+
+providers:
+  qwen25: { model: "ollama_chat/qwen2.5-coder:7b", api_base: "http://localhost:11434", max_concurrency: 2, timeout: 600, max_tokens: 2048 }
+  qwen2:  { model: "ollama_chat/qwen2:7b", api_base: "http://localhost:11434", max_concurrency: 2, timeout: 600, max_tokens: 2048 }
+judge: { provider: qwen25, prompt_version: v1 }
+
+pipelines:
+  baseline:
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: fuzzy, threshold: 0.85 }
+  llm_er:
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: llm_pairwise, provider: "${matrix.llm}" }
+
+matrix:
+  llm: [qwen25, qwen2]
+
+budget:  { max_cost_usd: null }
+runtime: { workers: 4, quick_limit: 20 }
+report:  { baseline: "baseline[llm=qwen2]" }

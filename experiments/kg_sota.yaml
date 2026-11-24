@@ -1,0 +1,41 @@
+# Flagship benchmark: Extraction + ER + graph on the strongest public datasets.
+#   gre run experiments/kg_sota.yaml --dry-run          # matrix + cost estimate
+#   gre run experiments/kg_sota.yaml --quick            # ~20 stratified samples / dataset
+#   gre run experiments/kg_sota.yaml                    # full
+#   gre run experiments/kg_sota.yaml --set matrix.llm=[claude] --stages extract
+name: kg_sota
+description: KG construction benchmark — Text2KGBench, Re-DocRED, MINE, WDC Products, Abt-Buy, Amazon-Google
+suite: kg_sota
+seeds: [0]
+mode: [isolated, cascaded]
+
+providers:                                   # API keys from .env (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY)
+  gpt:    { model: "openai/gpt-4.1-mini" }
+  claude: { model: "anthropic/claude-sonnet-4-5" }
+  gemini: { model: "gemini/gemini-2.5-flash" }
+  local:  { model: "ollama_chat/qwen2.5-coder:7b", api_base: "http://localhost:11434", max_concurrency: 2, max_tokens: 2048 }
+embeddings:
+  default: { model: "openai/text-embedding-3-small" }
+judge: { provider: gpt, prompt_version: v1 }  # keep the judge FIXED across experiments you compare
+
+pipelines:
+  baseline:                                  # reference: LLM extraction + fuzzy ER
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: fuzzy, threshold: 0.85 }
+  llm_er:                                    # reference: LLM extraction + LLM pairwise ER
+    extract: { adapter: llm_structured, provider: "${matrix.llm}" }
+    resolve: { adapter: llm_pairwise, provider: "${matrix.llm}" }
+  # yours:                                   # plug your pipeline in — no rewrite
+  #   extract: { callable: "my_pipeline:extract", provider: "${matrix.llm}" }
+  #   resolve: { callable: "my_pipeline:resolve" }
+
+matrix:
+  llm: [gpt, claude, gemini]
+
+scoring:
+  soft_match_threshold: 0.8
+  soft_method: fuzzy                         # or: embedding (uses embeddings.default)
+  exclude: []                                # e.g. ["graph.structure*"]
+budget:  { max_cost_usd: 50 }
+runtime: { workers: 8, quick_limit: 20 }
+report:  { formats: [html, md, json], baseline: "baseline[llm=gpt]" }
